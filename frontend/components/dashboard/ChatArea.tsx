@@ -35,7 +35,9 @@ export default function ChatArea() {
   useEffect(() => {
     if (currentChat) {
       const chatId = currentChat.id || currentChat._id
-      fetchMessages(chatId)
+      if (chatId) {
+        fetchMessages(chatId)
+      }
     }
   }, [currentChat, fetchMessages])
 
@@ -98,6 +100,12 @@ export default function ChatArea() {
     // Use the id property that should be mapped from _id
     const chatId = currentChat.id || currentChat._id
     console.log('🚀 Sending message:', content, 'to chat:', chatId)
+    
+    if (!chatId) {
+      console.error('❌ No chat ID available')
+      return
+    }
+    
     await sendMessage(chatId, content)
   }
 
@@ -146,9 +154,9 @@ export default function ChatArea() {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-850">
+    <div className="flex-1 flex flex-col bg-gray-850 h-full">
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto chat-messages p-4 space-y-4" style={{ maxHeight: 'calc(100vh - 200px)' }}>
         {isLoadingMessages ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
