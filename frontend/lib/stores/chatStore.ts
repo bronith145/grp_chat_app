@@ -27,7 +27,7 @@ interface Message {
 
 interface Chat {
   _id?: string  // For backward compatibility
-  id: string    // Current backend format
+  id?: string   // Current backend format, made optional since some objects only have _id
   name: string
   isGroup: boolean
   participants: User[]
@@ -134,18 +134,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const newChat = response.data.chat
       const currentChats = get().chats
       
+      // Ensure the chat has consistent id format
+      const normalizedChat = {
+        ...newChat,
+        id: newChat.id || newChat._id
+      }
+      
       // Check if chat already exists (for one-on-one chats)
       if (response.data.isExisting) {
-        const existingChatIndex = currentChats.findIndex(c => c.id === newChat.id)
+        const existingChatIndex = currentChats.findIndex(c => 
+          (c.id || c._id) === (normalizedChat.id || normalizedChat._id)
+        )
         if (existingChatIndex === -1) {
-          set({ chats: [newChat, ...currentChats] })
+          set({ chats: [normalizedChat, ...currentChats] })
         }
       } else {
-        set({ chats: [newChat, ...currentChats] })
+        set({ chats: [normalizedChat, ...currentChats] })
         toast.success(isGroup ? 'Group created successfully!' : 'Chat created!')
       }
       
-      return newChat
+      return normalizedChat
     } catch (error: any) {
       console.error('Create chat error:', error)
       toast.error('Failed to create chat')
@@ -154,8 +162,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   selectChat: (chat: Chat) => {
-    console.log('� Selecting chat:', chat)
+    console.log('🔍 Selecting chat:', chat)
     console.log('🆔 Chat ID:', chat?.id)
+    console.log('🆔 Chat _ID:', chat?._id)
     console.log('🔍 Chat type:', typeof chat)
     console.log('🔍 ID type:', typeof chat?.id)
     
@@ -165,15 +174,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return
     }
     
-    if (!chat.id) {
-      console.error('❌ Chat missing ID:', chat)
+    // Use either id or _id for chat identification
+    const chatId = chat.id || chat._id
+    if (!chatId) {
+      console.error('❌ Chat missing both ID and _ID:', chat)
       toast.error('Invalid chat - missing ID')
       return
     }
     
-    console.log('✅ Setting current chat with ID:', chat.id)
-    set({ currentChat: chat, messages: [] })
-    get().fetchMessages(chat.id)
+    // Ensure the chat object has an id property for consistency
+    const normalizedChat = {
+      ...chat,
+      id: chatId
+    }
+    
+    console.log('✅ Setting current chat with ID:', chatId)
+    set({ currentChat: normalizedChat, messages: [] })
+    get().fetchMessages(chatId)
   },
 
   fetchMessages: async (chatId: string, page = 1) => {
@@ -234,11 +251,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       
       // Update chat's last message in chat list
       const currentChats = get().chats
-      const updatedChats = currentChats.map(chat => 
-        chat.id === chatId 
+      const updatedChats = currentChats.map(chat => {
+        const currentChatId = chat.id || chat._id
+        return currentChatId === chatId 
           ? { ...chat, lastMessage: newMessage, updatedAt: new Date().toISOString() }
           : chat
-      )
+      })
       set({ chats: updatedChats })
       
     } catch (error: any) {
@@ -263,17 +281,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const currentChat = get().currentChat
     
     // Only add if message belongs to current chat
-    if (currentChat && message.chat === currentChat._id) {
-      set({ messages: [...currentMessages, message] })
+    if (currentChat) {
+      const currentChatId = currentChat.id || currentChat._id
+      if (message.chat === currentChatId) {
+        set({ messages: [...currentMessages, message] })
+      }
     }
     
     // Update chat's last message in chat list
     const currentChats = get().chats
-    const updatedChats = currentChats.map(chat => 
-      chat._id === message.chat
+    const updatedChats = currentChats.map(chat => {
+      const chatId = chat.id || chat._id
+      return chatId === message.chat
         ? { ...chat, lastMessage: message, updatedAt: new Date().toISOString() }
         : chat
-    )
+    })
     set({ chats: updatedChats })
   },
 
