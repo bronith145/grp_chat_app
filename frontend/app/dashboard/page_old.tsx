@@ -7,6 +7,7 @@ import { useChatStore } from '@/lib/stores/chatStore'
 import LoadingSpinner from '@/components/ui/LoadingSpinner'
 import ChatArea from '@/components/dashboard/ChatArea'
 import SimpleSidebar from '@/components/dashboard/SimpleSidebar'
+import ChatDebugger from '@/components/debug/ChatDebugger'
 import CreateChatModal from '@/components/modals/CreateChatModal'
 
 export default function DashboardPage() {
@@ -99,6 +100,34 @@ export default function DashboardPage() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         <ChatArea />
+      </div>
+      
+      {/* Right Debug Panel (can be toggled) */}
+      <div className="w-96 border-l border-gray-700 bg-gray-800">
+        <div className="p-4 border-b border-gray-700">
+          <h3 className="text-white font-semibold">Debug Panel</h3>
+          <button 
+            onClick={debugCurrentState}
+            className="mt-2 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 mr-2"
+          >
+            Debug Current State
+          </button>
+          <button 
+            onClick={testAuthToken}
+            className="mt-2 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 mr-2"
+          >
+            Test Auth Token
+          </button>
+          <button 
+            onClick={() => setShowCreateChatModal(true)}
+            className="mt-2 px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
+          >
+            New Chat
+          </button>
+        </div>
+        <div className="overflow-y-auto h-full">
+          <ChatDebugger />
+        </div>
       </div>
       
       {/* Create Chat Modal */}
