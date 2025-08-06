@@ -10,7 +10,12 @@ import {
   FaceSmileIcon,
   PaperClipIcon,
   InformationCircleIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  PhoneIcon,
+  VideoCameraIcon,
+  EllipsisVerticalIcon,
+  MagnifyingGlassIcon,
+  UserPlusIcon
 } from '@heroicons/react/24/outline'
 
 export default function ChatArea() {
@@ -28,6 +33,8 @@ export default function ChatArea() {
   const [messageInput, setMessageInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [userScrolled, setUserScrolled] = useState(false)
+  const [showChatInfo, setShowChatInfo] = useState(false)
+  const [showMoreActions, setShowMoreActions] = useState(false)
   
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -164,42 +171,162 @@ export default function ChatArea() {
     return null
   }
 
-  return (
+    return (
     <div className="flex-1 flex flex-col bg-gray-850 h-full relative">
-      {/* Chat Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800">
+      {/* Enhanced Chat Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800 shadow-sm">
         <div className="flex items-center space-x-3">
           {/* Avatar */}
-          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
-            <span className="text-white font-semibold text-sm">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center shadow-md">
+            <span className="text-white font-bold text-lg">
               {getChatTitle().charAt(0).toUpperCase()}
             </span>
           </div>
           
           {/* Chat Info */}
-          <div>
-            <h2 className="text-white font-semibold">{getChatTitle()}</h2>
+          <div className="flex-1">
+            <div className="flex items-center space-x-2">
+              <h2 className="text-white font-semibold text-lg">{getChatTitle()}</h2>
+              {!currentChat.isGroup && (
+                <div className={`w-3 h-3 rounded-full ${
+                  currentChat.participants.find(p => p._id !== user?.id)?.isOnline 
+                    ? 'bg-green-500' 
+                    : 'bg-gray-500'
+                }`} />
+              )}
+            </div>
             {currentChat.isGroup ? (
-              <p className="text-gray-400 text-sm">
-                {currentChat.participants.length} members
-              </p>
+              <div className="flex items-center space-x-1">
+                <p className="text-gray-400 text-sm">
+                  {currentChat.participants.length} members
+                </p>
+                <span className="text-gray-500">•</span>
+                <p className="text-gray-400 text-sm">
+                  {currentChat.participants.filter(p => p.isOnline).length} online
+                </p>
+              </div>
             ) : (
               <p className="text-gray-400 text-sm">
-                {currentChat.participants.find(p => p._id !== user?.id)?.isOnline ? 'Online' : 'Offline'}
+                {currentChat.participants.find(p => p._id !== user?.id)?.isOnline ? 'Active now' : 'Last seen recently'}
               </p>
             )}
           </div>
         </div>
         
         {/* Header Actions */}
-        <div className="flex items-center space-x-2">
-          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors">
+        <div className="flex items-center space-x-1">
+          {/* Search Messages */}
+          <button 
+            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+            title="Search in conversation"
+          >
+            <MagnifyingGlassIcon className="w-5 h-5" />
+          </button>
+          
+          {/* Voice Call */}
+          <button 
+            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+            title="Voice call"
+          >
+            <PhoneIcon className="w-5 h-5" />
+          </button>
+          
+          {/* Video Call */}
+          <button 
+            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+            title="Video call"
+          >
+            <VideoCameraIcon className="w-5 h-5" />
+          </button>
+          
+          {/* Add People (for groups) */}
+          {currentChat.isGroup && (
+            <button 
+              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+              title="Add people"
+            >
+              <UserPlusIcon className="w-5 h-5" />
+            </button>
+          )}
+          
+          {/* Chat Info */}
+          <button 
+            onClick={() => setShowChatInfo(!showChatInfo)}
+            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+            title="Chat information"
+          >
             <InformationCircleIcon className="w-5 h-5" />
           </button>
+          
+          {/* More Actions */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowMoreActions(!showMoreActions)}
+              className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+              title="More actions"
+            >
+              <EllipsisVerticalIcon className="w-5 h-5" />
+            </button>
+            
+            {/* More Actions Dropdown */}
+            {showMoreActions && (
+              <div className="absolute right-0 top-12 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50">
+                <div className="p-2">
+                  <button className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-lg">
+                    View shared media
+                  </button>
+                  <button className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-lg">
+                    Search messages
+                  </button>
+                  <button className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-lg">
+                    Notification settings
+                  </button>
+                  {currentChat.isGroup && (
+                    <button className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-lg">
+                      Group settings
+                    </button>
+                  )}
+                  <hr className="my-2 border-gray-700" />
+                  <button className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-gray-700 rounded-lg">
+                    {currentChat.isGroup ? 'Leave group' : 'Block user'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Messages Area - FIXED CONTAINER */}
+      {/* Chat Info Panel (collapsible) */}
+      {showChatInfo && (
+        <div className="bg-gray-800 border-b border-gray-700 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-white font-semibold">Chat Information</h3>
+            <button 
+              onClick={() => setShowChatInfo(false)}
+              className="text-gray-400 hover:text-white"
+            >
+              ×
+            </button>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Type:</span>
+              <span className="text-white">{currentChat.isGroup ? 'Group Chat' : 'Direct Message'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Members:</span>
+              <span className="text-white">{currentChat.participants.length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Created:</span>
+              <span className="text-white">
+                {new Date(currentChat.createdAt || Date.now()).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}      {/* Messages Area - FIXED CONTAINER */}
       <div 
         ref={messagesContainerRef}
         onScroll={handleScroll}
