@@ -9,10 +9,9 @@ import {
   PaperAirplaneIcon,
   FaceSmileIcon,
   PaperClipIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline'
-// import MessageBubble from '@/components/chat/MessageBubble'
-// import TypingIndicator from '@/components/chat/TypingIndicator'
 
 export default function ChatArea() {
   const { user } = useAuthStore()
@@ -28,8 +27,11 @@ export default function ChatArea() {
   
   const [messageInput, setMessageInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [userScrolled, setUserScrolled] = useState(false)
+  
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Fetch messages when chat changes
   useEffect(() => {
@@ -37,14 +39,20 @@ export default function ChatArea() {
       const chatId = currentChat.id || currentChat._id
       if (chatId) {
         fetchMessages(chatId)
+        setUserScrolled(false) // Reset scroll state for new chat
       }
     }
   }, [currentChat, fetchMessages])
 
-  // Scroll to bottom when messages change
+  // Auto-scroll to bottom when messages change (if user hasn't manually scrolled)
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    if (!userScrolled && messagesContainerRef.current) {
+      const container = messagesContainerRef.current
+      setTimeout(() => {
+        container.scrollTop = container.scrollHeight
+      }, 100)
+    }
+  }, [messages, userScrolled])
 
   // Handle typing indicator
   useEffect(() => {
@@ -53,12 +61,10 @@ export default function ChatArea() {
       if (isTyping) {
         socket.emit('typing', { chatId })
         
-        // Clear existing timeout
         if (typingTimeoutRef.current) {
           clearTimeout(typingTimeoutRef.current)
         }
         
-        // Stop typing after 2 seconds of inactivity
         typingTimeoutRef.current = setTimeout(() => {
           setIsTyping(false)
           socket.emit('stopTyping', { chatId })
@@ -72,11 +78,35 @@ export default function ChatArea() {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current)
       }
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
     }
   }, [isTyping, socket, currentChat])
 
+  // Handle scroll detection with debouncing
+  const handleScroll = () => {
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current)
+    }
+    
+    scrollTimeoutRef.current = setTimeout(() => {
+      if (!messagesContainerRef.current) return
+      
+      const container = messagesContainerRef.current
+      const { scrollTop, scrollHeight, clientHeight } = container
+      const isAtBottom = scrollHeight - clientHeight - scrollTop < 20
+      
+      setUserScrolled(!isAtBottom)
+    }, 100)
+  }
+
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current
+      container.scrollTop = container.scrollHeight
+      setUserScrolled(false)
+    }
   }
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -85,8 +115,6 @@ export default function ChatArea() {
     console.log('🔍 Attempting to send message...')
     console.log('📝 Message input:', messageInput)
     console.log('💬 Current chat:', currentChat)
-    console.log('🆔 Chat ID (_id):', currentChat?._id)
-    console.log('🆔 Chat ID (id):', currentChat?.id)
     
     if (!messageInput.trim() || !currentChat) {
       console.log('❌ Validation failed - missing input or chat')
@@ -97,7 +125,9 @@ export default function ChatArea() {
     setMessageInput('')
     setIsTyping(false)
     
-    // Use the id property that should be mapped from _id
+    // Force scroll to bottom when sending
+    setUserScrolled(false)
+    
     const chatId = currentChat.id || currentChat._id
     console.log('🚀 Sending message:', content, 'to chat:', chatId)
     
@@ -130,33 +160,22 @@ export default function ChatArea() {
     return otherParticipant?.username || 'Unknown User'
   }
 
-  const getChatSubtitle = () => {
-    if (!currentChat) return ''
-    
-    if (currentChat.isGroup) {
-      return `${currentChat.participants.length} members`
-    }
-    
-    const otherParticipant = currentChat.participants.find(p => p._id !== user?.id)
-    if (otherParticipant?.isOnline) {
-      return 'Online'
-    }
-    
-    if (otherParticipant?.lastSeen) {
-      return `Last seen ${formatDistanceToNow(new Date(otherParticipant.lastSeen), { addSuffix: true })}`
-    }
-    
-    return 'Offline'
-  }
-
   if (!currentChat) {
     return null
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-850 h-full">
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto chat-messages p-4 space-y-4" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+    <div className="flex-1 flex flex-col bg-gray-850 h-full relative">
+      {/* Messages Area - FIXED CONTAINER */}
+      <div 
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+        style={{ 
+          height: 'calc(100vh - 200px)', // More reasonable calculation
+          overflowY: 'auto' // Only shows scrollbar when needed
+        }}
+      >
         {isLoadingMessages ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -180,38 +199,60 @@ export default function ChatArea() {
             </div>
           </div>
         ) : (
-          <>
+          <div className="space-y-2">
             {messages.map((message, index) => {
               const isOwnMessage = message.sender._id === user?.id
-              const showAvatar = !isOwnMessage && (
-                index === messages.length - 1 ||
-                messages[index + 1]?.sender._id !== message.sender._id
-              )
               
               return (
-                <div key={message._id} className="p-2 bg-gray-700 rounded mb-2">
-                  <p className="text-white">{message.content}</p>
-                  <small className="text-gray-400">{message.sender.username}</small>
+                <div 
+                  key={message._id} 
+                  className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                    isOwnMessage 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-gray-700 text-white'
+                  }`}>
+                    {!isOwnMessage && (
+                      <p className="text-xs text-gray-300 mb-1">{message.sender.username}</p>
+                    )}
+                    <p className="text-sm">{message.content}</p>
+                    <p className="text-xs text-gray-300 mt-1">
+                      {new Date(message.createdAt).toLocaleTimeString()}
+                    </p>
+                  </div>
                 </div>
               )
             })}
             
             {/* Typing Indicator */}
             {typingUsers.size > 0 && (
-              <div className="p-2 text-gray-400 italic">
-                Someone is typing...
+              <div className="flex justify-start">
+                <div className="bg-gray-700 px-4 py-2 rounded-lg">
+                  <p className="text-gray-400 text-sm italic">Someone is typing...</p>
+                </div>
               </div>
             )}
-            
-            <div ref={messagesEndRef} />
-          </>
+          </div>
         )}
       </div>
+
+      {/* Scroll to Bottom Button */}
+      {userScrolled && (
+        <div className="absolute bottom-24 right-6 z-10">
+          <button
+            onClick={scrollToBottom}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg transition-all duration-200"
+            title="Scroll to bottom"
+          >
+            <ChevronDownIcon className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       {/* Message Input */}
       <div className="p-4 border-t border-gray-700 bg-gray-800">
         <form onSubmit={handleSendMessage} className="flex items-end space-x-3">
-          {/* Attachment Button */}
           <button
             type="button"
             className="p-3 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
@@ -219,18 +260,16 @@ export default function ChatArea() {
             <PaperClipIcon className="w-6 h-6" />
           </button>
 
-          {/* Message Input */}
           <div className="flex-1 relative">
             <input
               type="text"
               value={messageInput}
               onChange={handleInputChange}
               placeholder={`Message ${getChatTitle()}...`}
-              className="w-full px-4 py-3 pr-12 bg-gray-700 border border-gray-600 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 resize-none"
+              className="w-full px-4 py-3 pr-12 bg-gray-700 border border-gray-600 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
               maxLength={5000}
             />
             
-            {/* Emoji Button */}
             <button
               type="button"
               className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-white transition-colors"
@@ -239,7 +278,6 @@ export default function ChatArea() {
             </button>
           </div>
 
-          {/* Send Button */}
           <button
             type="submit"
             disabled={!messageInput.trim()}
@@ -253,7 +291,6 @@ export default function ChatArea() {
           </button>
         </form>
 
-        {/* Character Count */}
         {messageInput.length > 4000 && (
           <div className="mt-2 text-right">
             <span className={`text-xs ${
