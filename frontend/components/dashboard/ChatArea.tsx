@@ -166,6 +166,39 @@ export default function ChatArea() {
 
   return (
     <div className="flex-1 flex flex-col bg-gray-850 h-full relative">
+      {/* Chat Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800">
+        <div className="flex items-center space-x-3">
+          {/* Avatar */}
+          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+            <span className="text-white font-semibold text-sm">
+              {getChatTitle().charAt(0).toUpperCase()}
+            </span>
+          </div>
+          
+          {/* Chat Info */}
+          <div>
+            <h2 className="text-white font-semibold">{getChatTitle()}</h2>
+            {currentChat.isGroup ? (
+              <p className="text-gray-400 text-sm">
+                {currentChat.participants.length} members
+              </p>
+            ) : (
+              <p className="text-gray-400 text-sm">
+                {currentChat.participants.find(p => p._id !== user?.id)?.isOnline ? 'Online' : 'Offline'}
+              </p>
+            )}
+          </div>
+        </div>
+        
+        {/* Header Actions */}
+        <div className="flex items-center space-x-2">
+          <button className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors">
+            <InformationCircleIcon className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
       {/* Messages Area - FIXED CONTAINER */}
       <div 
         ref={messagesContainerRef}
